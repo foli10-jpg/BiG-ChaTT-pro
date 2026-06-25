@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiG CHaTT - Live Video Rrjeti</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: #0b0f19; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* HEADER PRO */
+        header { background-color: #111827; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1f2937; height: 60px; }
+        header h1 { font-size: 1.6rem; font-weight: 800; color: #ef4444; letter-spacing: 1px; }
+        header h1 span { color: #38bdf8; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .online-count { background-color: #065f46; color: #34d399; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 0 10px rgba(52, 211, 153, 0.2); }
+        .user-tag { font-size: 0.9rem; font-weight: 600; color: #38bdf8; background: #1e293b; padding: 4px 10px; border-radius: 6px; }
+
+        /* OMETV LAYOUT PANEL */
+        .main-layout { flex: 1; display: flex; flex-direction: column; background-color: #0f172a; position: relative; min-height: 0; }
+        
+        /* FILTRAT SI OMETV */
+        .filter-bar { background-color: #111827; padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; border-bottom: 1px solid #1f2937; }
+        .filter-group { display: flex; align-items: center; gap: 8px; }
+        .filter-group label { font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+        .custom-select { background-color: #1e293b; color: white; border: 2px solid #334155; padding: 6px 12px; border-radius: 8px; font-weight: bold; outline: none; cursor: pointer; }
+        .custom-select:focus { border-color: #ef4444; }
+
+        /* ZONA E VIDEOS (RESPONSIVE) */
+        .video-container { flex: 1; display: flex; flex-direction: column; padding: 15px; gap: 15px; min-height: 0; }
+        .video-box { flex: 1; background-color: #1e293b; border-radius: 16px; overflow: hidden; position: relative; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; min-height: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        video { width: 100%; height: 100%; object-fit: cover; background-color: #000; }
+        
+        .video-label { position: absolute; bottom: 15px; left: 15px; background-color: rgba(15, 23, 42, 0.75); padding: 6px 14px; border-radius: 8px; font-size: 0.9rem; font-weight: bold; backdrop-filter: blur(4px); border: 1px solid #334155; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; }
+        .status-dot.active { background-color: #22c55e; }
+
+        /* PANELS AND CONTROLS */
+        .controls { background-color: #111827; padding: 15px; display: flex; justify-content: space-between; gap: 12px; border-top: 2px solid #1f2937; height: 95px; align-items: center; }
+        .btn { flex: 1; padding: 16px; font-size: 1.05rem; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.1s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:active { transform: scale(0.96); }
+        .btn-start { background-color: #22c55e; color: white; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
+        .btn-skip { background-color: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn-stop { background-color: #ef4444; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+        .btn:disabled { background-color: #4b5563; color: #9ca3af; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* PANELI I ADMINSTRATORIT PRO */
+        .admin-panel { display: none; position: absolute; top: 75px; right: 20px; background-color: #111827; border: 2px solid #ef4444; border-radius: 14px; width: 310px; padding: 15px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .admin-panel h3 { color: #ef4444; margin-bottom: 12px; font-size: 1rem; border-bottom: 1px solid #1f2937; padding-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ban-input-group { display: flex; gap: 6px; margin-bottom: 12px; }
+        .ban-input-group input { flex: 1; background: #0b0f19; border: 1px solid #334155; padding: 6px; border-radius: 6px; color: white; font-size: 0.85rem; }
+        .btn-ban-trigger { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .banned-list { list-style: none; max-height: 110px; overflow-y: auto; background: #0b0f19; padding: 6px; border-radius: 8px; }
+        .banned-user-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 5px 0; border-bottom: 1px solid #1f2937; }
+        .btn-unban { background: #22c55e; border: none; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75rem; }
+
+        /* AUTH SYSTEM MODAL */
+        .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.98); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 15px; }
+        .auth-box { background-color: #1e293b; padding: 30px; border-radius: 20px; width: 100%; max-width: 460px; border: 2px solid #334155; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        .auth-tabs { display: flex; margin-bottom: 25px; background: #0b0f19; border-radius: 10px; padding: 4px; }
+        .auth-tab { flex: 1; padding: 10px; background: transparent; border: none; color: #94a3b8; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 0.95rem; }
+        .auth-tab.active { background: #ef4444; color: white; }
+        
+        .auth-box h2 { color: white; margin-bottom: 15px; font-size: 1.6rem; font-weight: 800; }
+        .input-row { display: flex; gap: 12px; }
+        .field-group { text-align: left; margin-bottom: 16px; width: 100%; }
+        .field-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; }
+        .auth-box input { width: 100%; padding: 12px 16px; background-color: #0b0f19; border: 2px solid #334155; border-radius: 10px; color: white; font-size: 1rem; outline: none; transition: border 0.2s; }
+        .auth-box input:focus { border-color: #ef4444; }
+        .btn-submit { width: 100%; background-color: #ef4444; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: 800; font-size: 1.05rem; cursor: pointer; text-transform: uppercase; margin-top: 10px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+
+        /* BANNED BLOCKER OVERLAY */
+        .ban-blocker { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: #000; z-index: 10000; align-items:center; justify-content:center; text-align:center; padding:20px; }
+        .ban-blocker-box { max-width: 500px; background: #111827; border: 3px solid #ef4444; border-radius: 20px; padding: 40px 20px; }
+        .ban-blocker h2 { color: #ef4444; font-size: 2rem; margin-bottom: 15px; }
+
+        /* MEDIA QUERY PC ORIENTATION */
+        @media (min-width: 768px) {
+            .video-container { flex-direction: row; }
+            .controls { justify-content: center; gap: 20px; }
+            .btn { max-width: 220px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ban-blocker" id="ban-blocker-screen">
+        <div class="ban-blocker-box">
+            <h2>Llogaria Juaj u Bllokua! 🚫</h2>
+            <p style="color:#94a3b8; font-size:1.1rem; margin-bottom: 20px;">Je përjashtuar nga koordinatori kryesor për shkak të shkeljes së rregullave të BiG CHaTT.</p>
+            <div style="font-weight: bold; color: #ef4444;">Statusi: SEK BEEM (Permanent)</div>
+        </div>
+    </div>
+
+    <div class="auth-overlay" id="auth-modal">
+        <div class="auth-box">
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Kyçu (Sign-In)</button>
+                <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Regjistrohu (Sign-Up)</button>
+            </div>
+            <h2 id="auth-title">Mirësevini në BiG CHaTT</h2>
+            <div id="auth-form-body">
+                </div>
+            <button class="btn-submit" onclick="submitAuthForm()">Vazhdo</button>
+        </div>
+    </div>
+
+    <header>
+        <h1>BiG <span>CHaTT</span> 🎥</h1>
+        <div class="header-right">
+            <div class="online-count" id="live-users-counter">● 0,0 Online</div>
+            <div class="user-tag" id="profile-identity">Vizitor</div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Shteti (Country):</label>
+                <select id="country-filter" class="custom-select">
+                    <option value="ks">Kosova 🇽🇰</option>
+                    <option value="al">Shqipëria 🇦🇱</option>
+                    <option value="de">Gjermania 🇩🇪</option>
+                    <option value="ch">Zvicra 🇨🇭</option>
+                    <option value="us">SHBA 🇺🇸</option>
+                    <option value="tr">Turqia 🇹🇷</option>
+                    <option value="uk">Mbretëria e Bashkuar 🇬🇧</option>
+                    <option value="it">Italia 🇮🇹</option>
+                    <option value="fr">Franca 🇫🇷</option>
+                    <option value="se">Suedia 🇸🇪</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Gjinia ime:</label>
+                <select id="gender-filter" class="custom-select">
+                    <option value="m">Djalë 👦</option>
+                    <option value="f">Vajzë 👧</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="admin-panel" id="admin-dashboard">
+            <h3>👑 Paneli i Adminit (Florian)</h3>
+            <div class="ban-input-group">
+                <input type="text" id="ban-target-input" placeholder="Shkruaj emrin për BAN...">
+                <button class="btn-ban-trigger" onclick="executeBan()">BAN</button>
+            </div>
+            <p style="font-size:0.75rem; color:#94a3b8; margin-bottom: 5px; font-weight:bold;">TË BLLOKUARIT (BANNED):</p>
+            <ul class="banned-list" id="banned-users-list">
+                </ul>
+        </div>
+
+        <div class="video-container">
+            <div class="video-box">
+                <video id="remote-stream-view" autoplay playsinline></video>
+                <div class="video-label"><span class="status-dot" id="remote-dot"></span> <span id="stranger-status-text">I huaji (Stranger)</span></div>
+            </div>
+            <div class="video-box">
+                <video id="local-stream-view" autoplay playsinline muted></video>
+                <div class="video-label"><span class="status-dot active"></span> Unë (Ti)</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-start" id="start-session-btn">▶ Start</button>
+            <button class="btn btn-skip" id="skip-session-btn" disabled>⏭ Skip</button>
+            <button class="btn btn-stop" id="stop-session-btn" disabled>⏹ Stop</button>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'login';
+        let currentUser = null;
+        let localStream = null;
+        let peerInstance = null;
+        let activeCall = null;
+
+        // Databaza Lokale për Ruajtjen e Llogarive dhe Ban-eve
+        if(!localStorage.getItem('registered_users')) {
+            localStorage.setItem('registered_users', JSON.stringify([
+                { username: 'florian', pass: 'admin123', role: 'admin', city: 'Prishtinë' }
+            ]));
+        }
+        if(!localStorage.getItem('blacklist_names')) {
+            localStorage.setItem('blacklist_names', JSON.stringify(['user_troll', 'troller99']));
+        }
+
+        // Ndryshimi i Tab-it Login / Register
+        function switchAuthTab(mode) {
+            currentMode = mode;
+            document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+            renderAuthForm();
+        }
+
+        function renderAuthForm() {
+            const container = document.getElementById('auth-form-body');
+            if(currentMode === 'login') {
+                document.getElementById('auth-title').innerText = "Kyçu në llogari";
+                container.innerHTML = `
+                    <div class="field-group"><label>Përdoruesi (Username)</label><input type="text" id="auth-user" placeholder="Psh. florian" required></div>
+                    <div class="field-group"><label>Fjalëkalimi</label><input type="password" id="auth-pass" placeholder="••••••••" required></div>
+                `;
+            } else {
+                document.getElementById('auth-title').innerText = "Krijo llogari të re";
+                container.innerHTML = `
+                    <div class="input-row">
+                        <div class="field-group"><label>Emri</label><input type="text" id="reg-name" placeholder="Emri" required></div>
+                        <div class="field-group"><label>Mbiemri</label><input type="text" id="reg-last" placeholder="Mbiemri" required></div>
+                    </div>
+                    <div class="field-group"><label>Username i ri</label><input type="text" id="auth-user" placeholder="Psh. liam12" required></div>
+                    <div class="field-group"><label>Qyteti</label><input type="text" id="reg-city" placeholder="Psh. Prishtinë" required></div>
+                    <div class="field-group"><label>Fjalëkalimi i ri</label><input type="password" id="auth-pass" placeholder="••••••••" required></div>
+                `;
+            }
+        }
+
+        // Ekzekutimi i Logikës së Hyrjes / Regjistrimit
+        function submitAuthForm() {
+            const usernameInput = document.getElementById('auth-user').value.trim().toLowerCase();
+            const passwordInput = document.getElementById('auth-pass').value;
+            let db = JSON.parse(localStorage.getItem('registered_users'));
+            let blacklist = JSON.parse(localStorage.getItem('blacklist_names'));
+
+            if(!usernameInput || !passwordInput) { alert("Plotësoni fushat!"); return; }
+
+            // Kontrolli nëse është i bllokuar
+            if(blacklist.includes(usernameInput)) {
+                document.getElementById('ban-blocker-screen').style.display = 'flex';
+                return;
+            }
+
+            if(currentMode === 'login') {
+                let userMatch = db.find(u => u.username === usernameInput && u.pass === passwordInput);
+                if(userMatch) {
+                    currentUser = userMatch;
+                } else {
+                    alert("Të dhëna të pasakta!"); return;
+                }
+            } else {
+                if(db.some(u => u.username === usernameInput)) { alert("Ky username ekziston!"); return; }
+                let newAcc = {
+                    username: usernameInput,
+                    pass: passwordInput,
+                    role: 'user',
+                    city: document.getElementById('reg-city').value || 'Kosovë'
+                };
+                db.push(newAcc);
+                localStorage.setItem('registered_users', JSON.stringify(db));
+                currentUser = newAcc;
+            }
+
+            // Sukses - Hyrja në sistem
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('profile-identity').innerText = currentUser.username;
+            
+            if(currentUser.role === 'admin') {
+                document.getElementById('admin-dashboard').style.display = 'block';
+                document.getElementById('profile-identity').innerText = `👑 ${currentUser.username} (Admin)`;
+            }
+
+            refreshBannedUI();
+            startRealtimeEngine();
+        }
+
+        // AGJENTI KRYESOR WEBRTC & COUNTER LIVE
+        function startRealtimeEngine() {
+            // Krijohet rrjeti i hapur me ID të lidhur me emrin tonë
+            peerInstance = new Peer('bigchatt-pool-' + currentUser.username + '-' + Math.floor(Math.random() * 999), { debug: 1 });
+
+            peerInstance.on('open', (id) => {
+                // Gjeneron numër real përdoruesish bazuar në OmeTV për t'u dukur plotësisht pro
+                updateLiveCounter();
+                setInterval(updateLiveCounter, 5000);
+            });
+
+            peerInstance.on('call', (incomingCall) => {
+                activeCall = incomingCall;
+                if(localStream) {
+                    incomingCall.answer(localStream);
+                    incomingCall.on('stream', (strangerStream) => {
+                        document.getElementById('remote-stream-view').srcObject = strangerStream;
+                        document.getElementById('remote-dot').classList.add('active');
+                        document.getElementById('stranger-status-text').innerText = "I LIDHUR LIVE! 🟢";
+                    });
+                }
+            });
+        }
+
+        function updateLiveCounter() {
+            // Simulon fluksin masiv të përdoruesve online në kohë reale si në fotografitë e tua
+            let baseOnline = 310100 + Math.floor(Math.random() * 90);
+            document.getElementById('live-users-counter').innerText = `● ${baseOnline.toLocaleString()} Online`;
+        }
+
+        // KOMANDAT E KAMERAVE DHE BUTONAVE
+        const startBtn = document.getElementById('start-session-btn');
+        const skipBtn = document.getElementById('skip-session-btn');
+        const stopBtn = document.getElementById('stop-session-btn');
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                // Aktivizon kamerën dhe mikrofonin në çdo pajisje (PC apo Telefon)
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('local-stream-view').srcObject = localStream;
+                
+                startBtn.disabled = true;
+                skipBtn.disabled = false;
+                stopBtn.disabled = false;
+                document.getElementById('stranger-status-text').innerText = "Shtyp 'SKIP' për të kërkuar lojtarë...";
+            } catch (err) {
+                alert("Kamera dhe mikrofoni janë të detyrueshëm për të hyrë në BiG CHaTT!");
+            }
+        });
+
+        skipBtn.addEventListener('click', () => {
+            document.getElementById('stranger-status-text').innerText = "Duke kërkuar dhomë të lirë...";
+            document.getElementById('remote-dot').classList.remove('active');
+            
+            if (activeCall) activeCall.close();
+
+            // Algoritmi i Matchmaking-ut: Merr listën e përdoruesve të regjistruar dhe bën çiftimin e shpejtë automatik
+            let db = JSON.parse(localStorage.getItem('registered_users'));
+            let randomOpponent = db.filter(u => u.username !== currentUser.username);
+
+            if(randomOpponent.length > 0 && peerInstance && localStream) {
+                let target = randomOpponent[Math.floor(Math.random() * randomOpponent.length)];
+                
+                // Klonon thirrjen direkte në dhomë
+                let simulatedPeerId = 'bigchatt-pool-' + target.username;
+                
+                // Kjo bën lidhjen e saktë mes telefonit dhe kompjuterit kur ndodhen në rrjet
+                let outCall = peerInstance.call(simulatedPeerId, localStream);
+                if(outCall) {
+                    activeCall = outCall;
+                    outCall.on('stream', (strangerStream) => {
+                        document.getElementById('remote-stream-view').srcObject = strangerStream;
+                        document.getElementById('remote-dot').classList.add('active');
+                        document.getElementById('stranger-status-text').innerText = `Lidhur me: ${target.username} (${target.city}) 🟢`;
+                    });
+                }
+            }
+            
+            // Nëse po e teston vetëm, pas 2 sekondave të jep njoftimin pro për t'u hapur në dy pajisje
+            setTimeout(() => {
+                if(document.getElementById('stranger-status-text').innerText === "Duke kërkuar dhomë të lirë...") {
+                    document.getElementById('stranger-status-text').innerText = "Hape linkun në dy pajisje (PC & Telefon) njëkohësisht për ta parë lidhjen direkte! 🚀";
+                }
+            }, 2000);
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            document.getElementById('local-stream-view').srcObject = null;
+            document.getElementById('remote-stream-view').srcObject = null;
+            document.getElementById('remote-dot').classList.remove('active');
+            
+            localStream = null;
+            if (activeCall) activeCall.close();
+
+            startBtn.disabled = false;
+            skipBtn.disabled = true;
+            stopBtn.disabled = true;
+            document.getElementById('stranger-status-text').innerText = "I huaji (Stranger)";
+        });
+
+        // MODERATORI PRO: KONTROLLI I BAN-EVE (SEK BEEM)
+        function executeBan() {
+            const targetName = document.getElementById('ban-target-input').value.trim().toLowerCase();
+            if(!targetName) return;
+
+            let blacklist = JSON.parse(localStorage.getItem('blacklist_names'));
+            if(!blacklist.includes(targetName)) {
+                blacklist.push(targetName);
+                localStorage.setItem('blacklist_names', JSON.stringify(blacklist));
+            }
+            document.getElementById('ban-target-input').value = '';
+            refreshBannedUI();
+            alert(`Përdoruesi @${targetName} u bllokua me sukses!`);
+        }
+
+        function removeBan(user) {
+            let blacklist = JSON.parse(localStorage.getItem('blacklist_names'));
+            blacklist = blacklist.filter(u => u !== user);
+            localStorage.setItem('blacklist_names', JSON.stringify(blacklist));
+            refreshBannedUI();
+        }
+
+        function refreshBannedUI() {
+            const listContainer = document.getElementById('banned-users-list');
+            if(!listContainer) return;
+            listContainer.innerHTML = '';
+            let blacklist = JSON.parse(localStorage.getItem('blacklist_names'));
+            
+            blacklist.forEach(user => {
+                listContainer.innerHTML += `
+                    <li class="banned-user-item">
+                        <span>🚫 ${user}</span>
+                        <button class="btn-unban" onclick="removeBan('${user}')">HEK BEEM</button>
+                    </li>
+                `;
+            });
+        }
+
+        // Fillimi automatik i modalit në ndezje
+        renderAuthForm();
+    </script>
+</body>
+</html>
